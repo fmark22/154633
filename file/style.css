@@ -30,6 +30,7 @@ span {
 p > a:first-of-type {
   font-size: 20px;
 }
+
 body {
   overflow: hidden;
   background-color: black;
