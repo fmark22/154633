@@ -32,9 +32,6 @@ p > a:first-of-type {
 }
 body {
   overflow: hidden;
+  background-color: black;
   font-family: 'SANGJUDajungdagam';
 }
-
-a {
-  background-color: black;
- }
