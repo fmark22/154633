@@ -1,238 +1,402 @@
-'use strict';
+var w = c.width = window.innerWidth,
+		h = c.height = window.innerHeight,
+		ctx = c.getContext( '2d' ),
+		
+		hw = w / 2, // half-width
+		hh = h / 2,
+		
+		opts = {
+			strings: [ 'HAPPY', 'BIRTHDAY!' ],
+			charSize: 30,
+			charSpacing: 35,
+			lineHeight: 40,
+			
+			cx: w / 2,
+			cy: h / 2,
+			
+			fireworkPrevPoints: 10,
+			fireworkBaseLineWidth: 5,
+			fireworkAddedLineWidth: 8,
+			fireworkSpawnTime: 200,
+			fireworkBaseReachTime: 30,
+			fireworkAddedReachTime: 30,
+			fireworkCircleBaseSize: 20,
+			fireworkCircleAddedSize: 10,
+			fireworkCircleBaseTime: 30,
+			fireworkCircleAddedTime: 30,
+			fireworkCircleFadeBaseTime: 10,
+			fireworkCircleFadeAddedTime: 5,
+			fireworkBaseShards: 5,
+			fireworkAddedShards: 5,
+			fireworkShardPrevPoints: 3,
+			fireworkShardBaseVel: 4,
+			fireworkShardAddedVel: 2,
+			fireworkShardBaseSize: 3,
+			fireworkShardAddedSize: 3,
+			gravity: .1,
+			upFlow: -.1,
+			letterContemplatingWaitTime: 360,
+			balloonSpawnTime: 20,
+			balloonBaseInflateTime: 10,
+			balloonAddedInflateTime: 10,
+			balloonBaseSize: 20,
+			balloonAddedSize: 20,
+			balloonBaseVel: .4,
+			balloonAddedVel: .4,
+			balloonBaseRadian: -( Math.PI / 2 - .5 ),
+			balloonAddedRadian: -1,
+		},
+		calc = {
+			totalWidth: opts.charSpacing * Math.max( opts.strings[0].length, opts.strings[1].length )
+		},
+		
+		Tau = Math.PI * 2,
+		TauQuarter = Tau / 4,
+		
+		letters = [];
 
-// If set to true, the user must press
-// UP UP DOWN ODWN LEFT RIGHT LEFT RIGHT A B
-// to trigger the confetti with a random color theme.
-// Otherwise the confetti constantly falls.
-var onlyOnKonami = false;
+ctx.font = opts.charSize + 'px Verdana';
 
-$(function() {
-  // Globals
-  var $window = $(window)
-    , random = Math.random
-    , cos = Math.cos
-    , sin = Math.sin
-    , PI = Math.PI
-    , PI2 = PI * 2
-    , timer = undefined
-    , frame = undefined
-    , confetti = [];
+function Letter( char, x, y ){
+	this.char = char;
+	this.x = x;
+	this.y = y;
+	
+	this.dx = -ctx.measureText( char ).width / 2;
+	this.dy = +opts.charSize / 2;
+	
+	this.fireworkDy = this.y - hh;
+	
+	var hue = x / calc.totalWidth * 360;
+	
+	this.color = 'hsl(hue,80%,50%)'.replace( 'hue', hue );
+	this.lightAlphaColor = 'hsla(hue,80%,light%,alp)'.replace( 'hue', hue );
+	this.lightColor = 'hsl(hue,80%,light%)'.replace( 'hue', hue );
+	this.alphaColor = 'hsla(hue,80%,50%,alp)'.replace( 'hue', hue );
+	
+	this.reset();
+}
+Letter.prototype.reset = function(){
+	
+	this.phase = 'firework';
+	this.tick = 0;
+	this.spawned = false;
+	this.spawningTime = opts.fireworkSpawnTime * Math.random() |0;
+	this.reachTime = opts.fireworkBaseReachTime + opts.fireworkAddedReachTime * Math.random() |0;
+	this.lineWidth = opts.fireworkBaseLineWidth + opts.fireworkAddedLineWidth * Math.random();
+	this.prevPoints = [ [ 0, hh, 0 ] ];
+}
+Letter.prototype.step = function(){
+	
+	if( this.phase === 'firework' ){
+		
+		if( !this.spawned ){
+			
+			++this.tick;
+			if( this.tick >= this.spawningTime ){
+				
+				this.tick = 0;
+				this.spawned = true;
+			}
+			
+		} else {
+			
+			++this.tick;
+			
+			var linearProportion = this.tick / this.reachTime,
+					armonicProportion = Math.sin( linearProportion * TauQuarter ),
+					
+					x = linearProportion * this.x,
+					y = hh + armonicProportion * this.fireworkDy;
+			
+			if( this.prevPoints.length > opts.fireworkPrevPoints )
+				this.prevPoints.shift();
+			
+			this.prevPoints.push( [ x, y, linearProportion * this.lineWidth ] );
+			
+			var lineWidthProportion = 1 / ( this.prevPoints.length - 1 );
+			
+			for( var i = 1; i < this.prevPoints.length; ++i ){
+				
+				var point = this.prevPoints[ i ],
+						point2 = this.prevPoints[ i - 1 ];
+					
+				ctx.strokeStyle = this.alphaColor.replace( 'alp', i / this.prevPoints.length );
+				ctx.lineWidth = point[ 2 ] * lineWidthProportion * i;
+				ctx.beginPath();
+				ctx.moveTo( point[ 0 ], point[ 1 ] );
+				ctx.lineTo( point2[ 0 ], point2[ 1 ] );
+				ctx.stroke();
+			
+			}
+			
+			if( this.tick >= this.reachTime ){
+				
+				this.phase = 'contemplate';
+				
+				this.circleFinalSize = opts.fireworkCircleBaseSize + opts.fireworkCircleAddedSize * Math.random();
+				this.circleCompleteTime = opts.fireworkCircleBaseTime + opts.fireworkCircleAddedTime * Math.random() |0;
+				this.circleCreating = true;
+				this.circleFading = false;
+				
+				this.circleFadeTime = opts.fireworkCircleFadeBaseTime + opts.fireworkCircleFadeAddedTime * Math.random() |0;
+				this.tick = 0;
+				this.tick2 = 0;
+				
+				this.shards = [];
+				
+				var shardCount = opts.fireworkBaseShards + opts.fireworkAddedShards * Math.random() |0,
+						angle = Tau / shardCount,
+						cos = Math.cos( angle ),
+						sin = Math.sin( angle ),
+						
+						x = 1,
+						y = 0;
+				
+				for( var i = 0; i < shardCount; ++i ){
+					var x1 = x;
+					x = x * cos - y * sin;
+					y = y * cos + x1 * sin;
+					
+					this.shards.push( new Shard( this.x, this.y, x, y, this.alphaColor ) );
+				}
+			}
+			
+		}
+	} else if( this.phase === 'contemplate' ){
+		
+		++this.tick;
+		
+		if( this.circleCreating ){
+			
+			++this.tick2;
+			var proportion = this.tick2 / this.circleCompleteTime,
+					armonic = -Math.cos( proportion * Math.PI ) / 2 + .5;
+			
+			ctx.beginPath();
+			ctx.fillStyle = this.lightAlphaColor.replace( 'light', 50 + 50 * proportion ).replace( 'alp', proportion );
+			ctx.beginPath();
+			ctx.arc( this.x, this.y, armonic * this.circleFinalSize, 0, Tau );
+			ctx.fill();
+			
+			if( this.tick2 > this.circleCompleteTime ){
+				this.tick2 = 0;
+				this.circleCreating = false;
+				this.circleFading = true;
+			}
+		} else if( this.circleFading ){
+		
+			ctx.fillStyle = this.lightColor.replace( 'light', 70 );
+			ctx.fillText( this.char, this.x + this.dx, this.y + this.dy );
+			
+			++this.tick2;
+			var proportion = this.tick2 / this.circleFadeTime,
+					armonic = -Math.cos( proportion * Math.PI ) / 2 + .5;
+			
+			ctx.beginPath();
+			ctx.fillStyle = this.lightAlphaColor.replace( 'light', 100 ).replace( 'alp', 1 - armonic );
+			ctx.arc( this.x, this.y, this.circleFinalSize, 0, Tau );
+			ctx.fill();
+			
+			if( this.tick2 >= this.circleFadeTime )
+				this.circleFading = false;
+			
+		} else {
+			
+			ctx.fillStyle = this.lightColor.replace( 'light', 70 );
+			ctx.fillText( this.char, this.x + this.dx, this.y + this.dy );
+		}
+		
+		for( var i = 0; i < this.shards.length; ++i ){
+			
+			this.shards[ i ].step();
+			
+			if( !this.shards[ i ].alive ){
+				this.shards.splice( i, 1 );
+				--i;
+			}
+		}
+		
+		if( this.tick > opts.letterContemplatingWaitTime ){
+			
+			this.phase = 'balloon';
+			
+			this.tick = 0;
+			this.spawning = true;
+			this.spawnTime = opts.balloonSpawnTime * Math.random() |0;
+			this.inflating = false;
+			this.inflateTime = opts.balloonBaseInflateTime + opts.balloonAddedInflateTime * Math.random() |0;
+			this.size = opts.balloonBaseSize + opts.balloonAddedSize * Math.random() |0;
+			
+			var rad = opts.balloonBaseRadian + opts.balloonAddedRadian * Math.random(),
+					vel = opts.balloonBaseVel + opts.balloonAddedVel * Math.random();
+			
+			this.vx = Math.cos( rad ) * vel;
+			this.vy = Math.sin( rad ) * vel;
+		}
+	} else if( this.phase === 'balloon' ){
+			
+		ctx.strokeStyle = this.lightColor.replace( 'light', 80 );
+		
+		if( this.spawning ){
+			
+			++this.tick;
+			ctx.fillStyle = this.lightColor.replace( 'light', 70 );
+			ctx.fillText( this.char, this.x + this.dx, this.y + this.dy );
+			
+			if( this.tick >= this.spawnTime ){
+				this.tick = 0;
+				this.spawning = false;
+				this.inflating = true;	
+			}
+		} else if( this.inflating ){
+			
+			++this.tick;
+			
+			var proportion = this.tick / this.inflateTime,
+			    x = this.cx = this.x,
+					y = this.cy = this.y - this.size * proportion;
+			
+			ctx.fillStyle = this.alphaColor.replace( 'alp', proportion );
+			ctx.beginPath();
+			generateBalloonPath( x, y, this.size * proportion );
+			ctx.fill();
+			
+			ctx.beginPath();
+			ctx.moveTo( x, y );
+			ctx.lineTo( x, this.y );
+			ctx.stroke();
+			
+			ctx.fillStyle = this.lightColor.replace( 'light', 70 );
+			ctx.fillText( this.char, this.x + this.dx, this.y + this.dy );
+			
+			if( this.tick >= this.inflateTime ){
+				this.tick = 0;
+				this.inflating = false;
+			}
+			
+		} else {
+			
+			this.cx += this.vx;
+			this.cy += this.vy += opts.upFlow;
+			
+			ctx.fillStyle = this.color;
+			ctx.beginPath();
+			generateBalloonPath( this.cx, this.cy, this.size );
+			ctx.fill();
+			
+			ctx.beginPath();
+			ctx.moveTo( this.cx, this.cy );
+			ctx.lineTo( this.cx, this.cy + this.size );
+			ctx.stroke();
+			
+			ctx.fillStyle = this.lightColor.replace( 'light', 70 );
+			ctx.fillText( this.char, this.cx + this.dx, this.cy + this.dy + this.size );
+			
+			if( this.cy + this.size < -hh || this.cx < -hw || this.cy > hw  )
+				this.phase = 'done';
+			
+		}
+	}
+}
+function Shard( x, y, vx, vy, color ){
+	
+	var vel = opts.fireworkShardBaseVel + opts.fireworkShardAddedVel * Math.random();
+	
+	this.vx = vx * vel;
+	this.vy = vy * vel;
+	
+	this.x = x;
+	this.y = y;
+	
+	this.prevPoints = [ [ x, y ] ];
+	this.color = color;
+	
+	this.alive = true;
+	
+	this.size = opts.fireworkShardBaseSize + opts.fireworkShardAddedSize * Math.random();
+}
+Shard.prototype.step = function(){
+	
+	this.x += this.vx;
+	this.y += this.vy += opts.gravity;
+	
+	if( this.prevPoints.length > opts.fireworkShardPrevPoints )
+		this.prevPoints.shift();
+	
+	this.prevPoints.push( [ this.x, this.y ] );
+	
+	var lineWidthProportion = this.size / this.prevPoints.length;
+	
+	for( var k = 0; k < this.prevPoints.length - 1; ++k ){
+		
+		var point = this.prevPoints[ k ],
+				point2 = this.prevPoints[ k + 1 ];
+		
+		ctx.strokeStyle = this.color.replace( 'alp', k / this.prevPoints.length );
+		ctx.lineWidth = k * lineWidthProportion;
+		ctx.beginPath();
+		ctx.moveTo( point[ 0 ], point[ 1 ] );
+		ctx.lineTo( point2[ 0 ], point2[ 1 ] );
+		ctx.stroke();
+		
+	}
+	
+	if( this.prevPoints[ 0 ][ 1 ] > hh )
+		this.alive = false;
+}
+function generateBalloonPath( x, y, size ){
+	
+	ctx.moveTo( x, y );
+	ctx.bezierCurveTo( x - size / 2, y - size / 2,
+									 	 x - size / 4, y - size,
+									   x,            y - size );
+	ctx.bezierCurveTo( x + size / 4, y - size,
+									   x + size / 2, y - size / 2,
+									   x,            y );
+}
 
-  // Settings
-  var konami = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65]
-    , pointer = 0;
+function anim(){
+	
+	window.requestAnimationFrame( anim );
+	
+	ctx.fillStyle = '#111';
+	ctx.fillRect( 0, 0, w, h );
+	
+	ctx.translate( hw, hh );
+	
+	var done = true;
+	for( var l = 0; l < letters.length; ++l ){
+		
+		letters[ l ].step();
+		if( letters[ l ].phase !== 'done' )
+			done = false;
+	}
+	
+	ctx.translate( -hw, -hh );
+	
+	if( done )
+		for( var l = 0; l < letters.length; ++l )
+			letters[ l ].reset();
+}
 
-  var particles = 150
-    , spread = 40
-    , sizeMin = 3
-    , sizeMax = 12 - sizeMin
-    , eccentricity = 10
-    , deviation = 100
-    , dxThetaMin = -.1
-    , dxThetaMax = -dxThetaMin - dxThetaMin
-    , dyMin = .13
-    , dyMax = .18
-    , dThetaMin = .4
-    , dThetaMax = .7 - dThetaMin;
+for( var i = 0; i < opts.strings.length; ++i ){
+	for( var j = 0; j < opts.strings[ i ].length; ++j ){
+		letters.push( new Letter( opts.strings[ i ][ j ], 
+														j * opts.charSpacing + opts.charSpacing / 2 - opts.strings[ i ].length * opts.charSize / 2,
+														i * opts.lineHeight + opts.lineHeight / 2 - opts.strings.length * opts.lineHeight / 2 ) );
+	}
+}
 
-  var colorThemes = [
-    function() {
-      return color(200 * random()|0, 200 * random()|0, 200 * random()|0);
-    }, function() {
-      var black = 200 * random()|0; return color(200, black, black);
-    }, function() {
-      var black = 200 * random()|0; return color(black, 200, black);
-    }, function() {
-      var black = 200 * random()|0; return color(black, black, 200);
-    }, function() {
-      return color(200, 100, 200 * random()|0);
-    }, function() {
-      return color(200 * random()|0, 200, 200);
-    }, function() {
-      var black = 256 * random()|0; return color(black, black, black);
-    }, function() {
-      return colorThemes[random() < .5 ? 1 : 2]();
-    }, function() {
-      return colorThemes[random() < .5 ? 3 : 5]();
-    }, function() {
-      return colorThemes[random() < .5 ? 2 : 4]();
-    }
-  ];
-  function color(r, g, b) {
-    return 'rgb(' + r + ',' + g + ',' + b + ')';
-  }
+anim();
 
-  // Cosine interpolation
-  function interpolation(a, b, t) {
-    return (1-cos(PI*t))/2 * (b-a) + a;
-  }
-
-  // Create a 1D Maximal Poisson Disc over [0, 1]
-  var radius = 1/eccentricity, radius2 = radius+radius;
-  function createPoisson() {
-    // domain is the set of points which are still available to pick from
-    // D = union{ [d_i, d_i+1] | i is even }
-    var domain = [radius, 1-radius], measure = 1-radius2, spline = [0, 1];
-    while (measure) {
-      var dart = measure * random(), i, l, interval, a, b, c, d;
-
-      // Find where dart lies
-      for (i = 0, l = domain.length, measure = 0; i < l; i += 2) {
-        a = domain[i], b = domain[i+1], interval = b-a;
-        if (dart < measure+interval) {
-          spline.push(dart += a-measure);
-          break;
-        }
-        measure += interval;
-      }
-      c = dart-radius, d = dart+radius;
-
-      // Update the domain
-      for (i = domain.length-1; i > 0; i -= 2) {
-        l = i-1, a = domain[l], b = domain[i];
-        // c---d          c---d  Do nothing
-        //   c-----d  c-----d    Move interior
-        //   c--------------d    Delete interval
-        //         c--d          Split interval
-        //       a------b
-        if (a >= c && a < d)
-          if (b > d) domain[l] = d; // Move interior (Left case)
-          else domain.splice(l, 2); // Delete interval
-        else if (a < c && b > c)
-          if (b <= d) domain[i] = c; // Move interior (Right case)
-          else domain.splice(i, 0, c, d); // Split interval
-      }
-
-      // Re-measure the domain
-      for (i = 0, l = domain.length, measure = 0; i < l; i += 2)
-        measure += domain[i+1]-domain[i];
-    }
-
-    return spline.sort();
-  }
-
-  // Create the overarching container
-  var container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.top      = '0';
-  container.style.left     = '0';
-  container.style.width    = '100%';
-  container.style.height   = '0';
-  container.style.overflow = 'visible';
-  container.style.zIndex   = '9999';
-
-  // Confetto constructor
-  function Confetto(theme) {
-    this.frame = 0;
-    this.outer = document.createElement('div');
-    this.inner = document.createElement('div');
-    this.outer.appendChild(this.inner);
-
-    var outerStyle = this.outer.style, innerStyle = this.inner.style;
-    outerStyle.position = 'absolute';
-    outerStyle.width  = (sizeMin + sizeMax * random()) + 'px';
-    outerStyle.height = (sizeMin + sizeMax * random()) + 'px';
-    innerStyle.width  = '100%';
-    innerStyle.height = '100%';
-    innerStyle.backgroundColor = theme();
-
-    outerStyle.perspective = '50px';
-    outerStyle.transform = 'rotate(' + (360 * random()) + 'deg)';
-    this.axis = 'rotate3D(' +
-      cos(360 * random()) + ',' +
-      cos(360 * random()) + ',0,';
-    this.theta = 360 * random();
-    this.dTheta = dThetaMin + dThetaMax * random();
-    innerStyle.transform = this.axis + this.theta + 'deg)';
-
-    this.x = $window.width() * random();
-    this.y = -deviation;
-    this.dx = sin(dxThetaMin + dxThetaMax * random());
-    this.dy = dyMin + dyMax * random();
-    outerStyle.left = this.x + 'px';
-    outerStyle.top  = this.y + 'px';
-
-    // Create the periodic spline
-    this.splineX = createPoisson();
-    this.splineY = [];
-    for (var i = 1, l = this.splineX.length-1; i < l; ++i)
-      this.splineY[i] = deviation * random();
-    this.splineY[0] = this.splineY[l] = deviation * random();
-
-    this.update = function(height, delta) {
-      this.frame += delta;
-      this.x += this.dx * delta;
-      this.y += this.dy * delta;
-      this.theta += this.dTheta * delta;
-
-      // Compute spline and convert to polar
-      var phi = this.frame % 7777 / 7777, i = 0, j = 1;
-      while (phi >= this.splineX[j]) i = j++;
-      var rho = interpolation(
-        this.splineY[i],
-        this.splineY[j],
-        (phi-this.splineX[i]) / (this.splineX[j]-this.splineX[i])
-      );
-      phi *= PI2;
-
-      outerStyle.left = this.x + rho * cos(phi) + 'px';
-      outerStyle.top  = this.y + rho * sin(phi) + 'px';
-      innerStyle.transform = this.axis + this.theta + 'deg)';
-      return this.y > height+deviation;
-    };
-  }
-
-  function poof() {
-    if (!frame) {
-      // Append the container
-      document.body.appendChild(container);
-
-      // Add confetti
-      var theme = colorThemes[onlyOnKonami ? colorThemes.length * random()|0 : 0]
-        , count = 0;
-      (function addConfetto() {
-        if (onlyOnKonami && ++count > particles)
-          return timer = undefined;
-
-        var confetto = new Confetto(theme);
-        confetti.push(confetto);
-        container.appendChild(confetto.outer);
-        timer = setTimeout(addConfetto, spread * random());
-      })(0);
-
-      // Start the loop
-      var prev = undefined;
-      requestAnimationFrame(function loop(timestamp) {
-        var delta = prev ? timestamp - prev : 0;
-        prev = timestamp;
-        var height = $window.height();
-
-        for (var i = confetti.length-1; i >= 0; --i) {
-          if (confetti[i].update(height, delta)) {
-            container.removeChild(confetti[i].outer);
-            confetti.splice(i, 1);
-          }
-        }
-
-        if (timer || confetti.length)
-          return frame = requestAnimationFrame(loop);
-
-        // Cleanup
-        document.body.removeChild(container);
-        frame = undefined;
-      });
-    }
-  }
-
-  $window.keydown(function(event) {
-    pointer = konami[pointer] === event.which
-      ? pointer+1
-      : +(event.which === konami[0]);
-    if (pointer === konami.length) {
-      pointer = 0;
-      poof();
-    }
-  });
-  
-  if (!onlyOnKonami) poof();
-});
+window.addEventListener( 'resize', function(){
+	
+	w = c.width = window.innerWidth;
+	h = c.height = window.innerHeight;
+	
+	hw = w / 2;
+	hh = h / 2;
+	
+	ctx.font = opts.charSize + 'px Verdana';
+})
