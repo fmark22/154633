@@ -11,10 +11,6 @@ canvas {
   left: 0;
 }
 
-body {
-    font-family: 'SANGJUDajungdagam';
-}
-
 p {
   margin: 0 0;
   position: absolute;
@@ -36,5 +32,9 @@ p > a:first-of-type {
 }
 body {
   overflow: hidden;
+  font-family: 'SANGJUDajungdagam';
 }
 
+a {
+  background-color: black;
+ }
