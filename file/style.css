@@ -5,10 +5,11 @@
     font-style: normal;
 }
 
-canvas {
+#canvas {
   position: absolute;
   top: 0;
   left: 0;
+  font-family: 'SANGJUDajungdagam';
 }
 
 p {
@@ -19,20 +20,25 @@ p {
   height: 25px;
   top: calc(100vh - 30px);
   text-shadow: 0 0 2px white;
+  font-family: 'Gamja Flower', cursive;
 }
 p a {
   text-decoration: none;
   color: #aaa;
+  font-family: 'Gamja Flower', cursive;
 }
 span {
   font-size: 11px;
+  font-family: 'Gamja Flower', cursive;
 }
 p > a:first-of-type {
   font-size: 20px;
+  font-family: 'Gamja Flower', cursive;
 }
 
 body {
   overflow: hidden;
   background-color: black;
   font-family: 'SANGJUDajungdagam';
+  font-family: 'Gamja Flower', cursive;
 }

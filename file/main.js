@@ -6,7 +6,7 @@ var w = c.width = window.innerWidth,
     hh = h / 2,
 
     opts = {
-        strings: ['축! 12만건 달성 기념', '모두들 수고하셨습니다!', '남은 시간도 파이팅:D'],
+        strings: ['예에에에에에에', '축! 12만건 달성', '모두들 수고하셨습니다!', '남은 시간도 파이팅:D'],
         charSize: 30,
         charSpacing: 35,
         lineHeight: 40,

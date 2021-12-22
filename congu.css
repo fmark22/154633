@@ -1,0 +1,36 @@
+@font-face {
+  font-family: "SANGJUDajungdagam";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2112@1.0/SANGJUDajungdagam.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+body {
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+}
+
+#canvas {
+  background: linear-gradient(#81e9f7, #f7ce81);
+}
+
+.copy {
+  position: absolute;
+  top: 45%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  pointer-events: none;
+  font-family: "SANGJUDajungdagam";
+  color: #333;
+}
+.copy h1 {
+  margin: 0;
+  color: white;
+  letter-spacing: 1px;
+  font-size: 7vmin;
+  font-weight: 700;
+}
+.copy p {
+  margin: 0;
+}
